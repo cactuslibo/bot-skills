@@ -1,0 +1,9 @@
+{
+  "tickers": ["AAPL", "NVDA", "TSLA"],
+  "sources": ["tickertick", "yahoo_rss", "google_news", "finviz"],
+  "per_source_limit": 30,
+  "google_news_window": "2d",
+  "title_similarity_threshold": 0.85,
+  "db_path": "news.db",
+  "output_dir": "output"
+}
