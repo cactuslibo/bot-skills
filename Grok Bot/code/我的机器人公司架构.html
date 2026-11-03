@@ -1,0 +1,190 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>我的机器人公司架构</title>
+<style>
+html,body{margin:0;padding:0;width:100vw;height:100vh;overflow:hidden}
+body{font-family:system-ui,"Microsoft YaHei",sans-serif;background:#fff;color:#222}
+#top{position:fixed;left:8px;top:8px;right:8px;z-index:20;background:#ffffffe6;border-radius:10px;padding:6px 10px;box-shadow:0 2px 8px #0002;pointer-events:auto}
+#top.min .help{display:none}
+#vp{position:fixed;left:0;top:0;width:100vw;height:100vh;overflow:hidden;background:#fff;touch-action:none;user-select:none}
+#vp.pan{cursor:grab}
+#bar{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 0}
+button,input{padding:6px 12px;border-radius:8px;border:1px solid #ccc;background:#eee;font:inherit;cursor:pointer}
+input{background:#fff;cursor:text}
+button.on{background:#222;color:#fff}
+#board{position:absolute;left:0;top:0;width:0;height:0;overflow:visible;user-select:none}
+.dept{position:absolute;border:1px dashed #999;border-radius:12px}
+.dept.pick{outline:3px solid #3B82F6}
+.dept.sel{outline:3px solid #2563EB;box-shadow:0 0 0 6px #3B82F633}
+#mq{position:absolute;border:1px solid #2563EB;background:#3B82F633;z-index:5;pointer-events:none;display:none}
+.hd{padding:6px 10px;font-weight:600;font-size:14px;cursor:move;color:#555}
+.hd input{border:none;border-bottom:1px dashed #bbb;background:transparent;padding:0;font-weight:600;color:#555;cursor:text;border-radius:0}
+.hd .sw{margin-left:8px}
+.hd .x{margin-left:8px;color:#aaa;cursor:pointer}
+.rs{position:absolute;z-index:4;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;border-right:3px solid #888;border-bottom:3px solid #888;border-bottom-right-radius:12px}
+.bot{position:absolute;z-index:2;width:120px;display:flex;flex-direction:column;align-items:center;cursor:grab;font-size:13px;text-align:center}
+svg#lines{position:absolute;left:0;top:0;pointer-events:none;z-index:3;overflow:visible}
+
+#ov{position:absolute;left:0;top:0;width:100%;height:100%;display:none;z-index:6}
+.txt{position:absolute;z-index:4;font-size:16px;min-width:10px;padding:2px 4px;white-space:pre;cursor:move;outline:none}
+.txt[contenteditable=true]{cursor:text;outline:1px dashed #3B82F6;background:#fff}
+.sz{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;border-radius:3px;background:#fff;border:2px solid #888;cursor:nwse-resize;display:none}
+.bot:hover .sz{display:block}
+#saved{color:#4a4;font-size:13px;align-self:center}
+</style></head><body>
+<div id="top"><div style="font-size:18px;font-weight:600">我的机器人公司架构 <button id="hm" style="font-size:12px;padding:2px 8px">收起说明</button></div>
+<div class="help" style="color:#666;font-size:13px">移动画布：按住空格拖动、鼠标中键/右键拖动、或滚轮（Shift+滚轮横向）。“选择”模式下：拖动机器人、部门（按住 ⠿）、文字；拖右下角改部门大小；鼠标移到机器人图标上，拖它右下角的小方块可以缩放图标；点部门名改名；点小圆点换背景色；双击文字可修改。画笔随手画，直线按住拖出一条线，文字点哪里就在哪里输入，橡皮点到线条或文字就删除。所有改动自动保存。</div>
+<div id="bar"><input id="nd" placeholder="新部门名称"><button id="add">添加部门</button><span id="tools"></span><span id="pc"></span><button id="clr">清除所有线条和文字</button><button id="reset">恢复默认布局</button><button id="fitb">适应窗口</button><span id="saved"></span></div></div>
+<div id="vp"><div id="ov"></div><div id="board"><div id="mq"></div><svg id="lines" width="1" height="1"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#555"/></marker></defs></svg></div></div>
+<script>
+const BOTS=[{"id": "6d611827-1420-4c31-bcdf-e06aa4c9f0cb", "name": "Grok Bot", "shape": "blob", "color": "black"}, {"id": "1a60a2a1-b332-43d0-a73f-792486ceb498", "name": "Api大师", "shape": "cloud", "color": "gray"}, {"id": "d9cc9e21-e19b-4f9e-beee-c048dffe3e74", "name": "BeibeiAI", "shape": "tablet", "color": "magenta"}, {"id": "5a2a3b80-2664-432a-8120-1438e1088351", "name": "Github检索", "shape": "blob", "color": "gray"}, {"id": "f6242f17-1318-4eb7-af58-ca0476438626", "name": "Github股市信息", "shape": "cloud", "color": "gray"}, {"id": "cab52300-ea85-4083-8e87-7497449e18be", "name": "GoogleAI", "shape": "blob", "color": "yellow"}, {"id": "362b16c9-700c-4fbd-a073-eab8cc14531c", "name": "NSF", "shape": "tablet", "color": "magenta"}, {"id": "05eca9dc-d7e1-4e40-a697-7335e280bd8d", "name": "QQQ小时线监督", "shape": "cloud", "color": "yellow"}, {"id": "8277d4bd-4832-4627-85a6-ac2277123beb", "name": "SciHub", "shape": "cloud", "color": "blue"}, {"id": "01918a89-8c62-4cd7-923c-1be5f3cd141c", "name": "TradingView", "shape": "blob", "color": "cyan"}, {"id": "34baed10-a235-4a9d-9423-bcf2efeaf22c", "name": "园园ai策略", "shape": "cloud", "color": "cyan"}, {"id": "ff619287-9508-48ea-9d3f-b2140b51b30c", "name": "园园策略调整", "shape": "cloud", "color": "cyan"}, {"id": "8a05436d-eed8-475f-8f07-ce64f768e607", "name": "小时策略", "shape": "cloud", "color": "cyan"}, {"id": "9110107e-e320-4900-bb65-245252e9ff5d", "name": "文献搜索", "shape": "blob", "color": "blue"}, {"id": "d40aae61-9b2f-4888-ad56-9512f65c5729", "name": "每日量化策略检测", "shape": "cloud", "color": "cyan"}, {"id": "c3eee2de-5475-42c0-b0ba-cf85f9c63a4c", "name": "策略MyRSI", "shape": "cloud", "color": "cyan"}, {"id": "3a7db183-9959-4456-8a1c-8b270841b722", "name": "网页设计", "shape": "square", "color": "gray"}, {"id": "47ca3af7-1752-4f7e-8094-4e4f236548a5", "name": "自主学习", "shape": "blob", "color": "magenta"}, {"id": "b45cc405-91e6-4b2b-89a1-252e840cce06", "name": "Skill总监", "shape": "blob", "color": "black"}, {"id": "d42f8e55-371c-498e-9858-aabdc1d3a073", "name": "产业研究", "shape": "blob", "color": "cyan"}, {"id": "08475405-814d-4fd0-b0ab-286aef5b8e76", "name": "市场规模", "shape": "cloud", "color": "cyan"}, {"id": "f8b9803f-af62-4323-a51a-dbd7efd61c10", "name": "企业估值分析", "shape": "cloud", "color": "cyan"}, {"id": "11a738ce-b22f-4a70-ad7f-41ca6060c342", "name": "数学建模之神", "shape": "blob", "color": "violet"}, {"id": "165cbef4-37fa-4fb4-8ed0-cea3ab01607e", "name": "拓扑", "shape": "star", "color": "violet"}, {"id": "81a3d707-de3d-4824-b6ca-d274556142a5", "name": "量化指标汇总", "shape": "blob", "color": "cyan"}, {"id": "9d3c0373-1e96-44b9-baf6-55171c6555f5", "name": "Youtube等自媒体检索", "shape": "cloud", "color": "yellow"}, {"id": "aa58123d-ab1b-4e37-b042-e3a6f9c43928", "name": "网络信息搜索", "shape": "blob", "color": "gray"}, {"id": "f8c5aec5-7624-4080-bb97-96dda81a5b93", "name": "股市信息检索", "shape": "cloud", "color": "cyan"}, {"id": "f91d8ccd-4c21-4a61-ad2f-b8f5c9528148", "name": "自主学习股市量化版", "shape": "blob", "color": "cyan"}, {"id": "10056f5a-2254-4409-919d-ccf862630619", "name": "专家education", "shape": "cloud", "color": "black"}, {"id": "245dbe8f-cca5-4e18-9ff1-710d85b0a665", "name": "培训总监", "shape": "blob", "color": "black"}, {"id": "a2be657b-f4cd-4c21-97ae-3322a1005ac9", "name": "专家网络足迹", "shape": "cloud", "color": "black"}, {"id": "fe0e695f-c929-4ab1-b895-0ed8082924e3", "name": "专家猎头", "shape": "cloud", "color": "black"}];
+const COLORS={black:"#1F1F1F",cyan:"#22B8CF",gray:"#9AA0A6",magenta:"#D63AAF",blue:"#3B82F6",yellow:"#F5B915",green:"#22C55E",red:"#EF4444",orange:"#F97316",purple:"#8B5CF6",pink:"#EC4899",violet:"#7C3AED"};
+const PATHS={star:"M24 3L30 17L45 18L33.5 28L37 43L24 35L11 43L14.5 28L3 18L18 17Z",square:"M6 6H42V42H6Z",blob:"M24 3C35 3 45 11 45 23C45 36 36 45 24 45C11 45 3 37 3 24C3 12 12 3 24 3Z",cloud:"M14 38C7 38 3 33 3 27C3 21 8 17 13 17C14 10 19 5 26 5C33 5 38 10 39 17C44 18 45 22 45 27C45 33 41 38 35 38Z",tablet:"M10 4H38C41 4 43 6 43 9V39C43 42 41 44 38 44H10C7 44 5 42 5 39V9C5 6 7 4 10 4Z"};
+const DCOL=["blue","yellow","cyan"];const PALETTE=["black","cyan","gray","magenta","blue","yellow"];
+const DEF={"depts": [{"id": "t0", "name": "秘书", "x": 20, "y": 20, "w": 200, "h": 130}, {"id": "t1", "name": "SVP", "x": 250, "y": 20, "w": 395, "h": 130}, {"id": "t2", "name": "VP", "x": 675, "y": 20, "w": 645, "h": 130}, {"id": "d0", "name": "股市产业分析", "x": 20, "y": 230, "w": 520, "h": 130}, {"id": "d1", "name": "股市玩家分析", "x": 560, "y": 230, "w": 200, "h": 130}, {"id": "d2", "name": "网络信息", "x": 780, "y": 230, "w": 645, "h": 130}, {"id": "d3", "name": "股市量化分析", "x": 20, "y": 400, "w": 895, "h": 130}, {"id": "d4", "name": "数学", "x": 935, "y": 400, "w": 200, "h": 130}, {"id": "d5", "name": "文献", "x": 1155, "y": 400, "w": 270, "h": 130}, {"id": "d6", "name": "科研", "x": 20, "y": 570, "w": 270, "h": 130}], "pos": {"6d611827-1420-4c31-bcdf-e06aa4c9f0cb": {"x": 32, "y": 60}, "b45cc405-91e6-4b2b-89a1-252e840cce06": {"x": 262, "y": 60}, "f91d8ccd-4c21-4a61-ad2f-b8f5c9528148": {"x": 387, "y": 60}, "47ca3af7-1752-4f7e-8094-4e4f236548a5": {"x": 512, "y": 60}, "aa58123d-ab1b-4e37-b042-e3a6f9c43928": {"x": 687, "y": 60}, "cab52300-ea85-4083-8e87-7497449e18be": {"x": 937, "y": 60}, "11a738ce-b22f-4a70-ad7f-41ca6060c342": {"x": 1062, "y": 60}, "81a3d707-de3d-4824-b6ca-d274556142a5": {"x": 1187, "y": 60}, "f8b9803f-af62-4323-a51a-dbd7efd61c10": {"x": 32, "y": 270}, "f8c5aec5-7624-4080-bb97-96dda81a5b93": {"x": 157, "y": 270}, "08475405-814d-4fd0-b0ab-286aef5b8e76": {"x": 282, "y": 270}, "d42f8e55-371c-498e-9858-aabdc1d3a073": {"x": 812, "y": 60}, "1a60a2a1-b332-43d0-a73f-792486ceb498": {"x": 792, "y": 270}, "f6242f17-1318-4eb7-af58-ca0476438626": {"x": 917, "y": 270}, "9d3c0373-1e96-44b9-baf6-55171c6555f5": {"x": 1042, "y": 270}, "5a2a3b80-2664-432a-8120-1438e1088351": {"x": 1167, "y": 270}, "3a7db183-9959-4456-8a1c-8b270841b722": {"x": 1292, "y": 270}, "c3eee2de-5475-42c0-b0ba-cf85f9c63a4c": {"x": 32, "y": 440}, "01918a89-8c62-4cd7-923c-1be5f3cd141c": {"x": 157, "y": 440}, "ff619287-9508-48ea-9d3f-b2140b51b30c": {"x": 282, "y": 440}, "d40aae61-9b2f-4888-ad56-9512f65c5729": {"x": 407, "y": 440}, "8a05436d-eed8-475f-8f07-ce64f768e607": {"x": 532, "y": 440}, "34baed10-a235-4a9d-9423-bcf2efeaf22c": {"x": 657, "y": 440}, "05eca9dc-d7e1-4e40-a697-7335e280bd8d": {"x": 782, "y": 440}, "165cbef4-37fa-4fb4-8ed0-cea3ab01607e": {"x": 947, "y": 440}, "8277d4bd-4832-4627-85a6-ac2277123beb": {"x": 1167, "y": 440}, "9110107e-e320-4900-bb65-245252e9ff5d": {"x": 1292, "y": 440}, "d9cc9e21-e19b-4f9e-beee-c048dffe3e74": {"x": 32, "y": 610}, "362b16c9-700c-4fbd-a073-eab8cc14531c": {"x": 157, "y": 610}}, "lines": [{"a": "t1", "b": "d0"}, {"a": "t1", "b": "d1"}, {"a": "t1", "b": "d2"}]};
+/* 群聊(group chat)永不显示、永不合并 */
+const GROUP_CHATS=new Set(["021a30ec-226c-41da-8245-5114fa07db86"]);for(let i=BOTS.length-1;i>=0;i--)if(GROUP_CHATS.has(BOTS[i].id))BOTS.splice(i,1);
+const KEY="grokbot-org-v3";
+let S=JSON.parse(localStorage.getItem(KEY)||"null")||JSON.parse(JSON.stringify(DEF));
+S.depts=S.depts||[];S.pos=S.pos||{};S.lines=S.lines||[];
+const ALIAS={"skill-director": "b45cc405-91e6-4b2b-89a1-252e840cce06", "d42f8e55": "d42f8e55-371c-498e-9858-aabdc1d3a073", "new-market-size": "08475405-814d-4fd0-b0ab-286aef5b8e76", "new-valuation": "f8b9803f-af62-4323-a51a-dbd7efd61c10", "new-math-model": "11a738ce-b22f-4a70-ad7f-41ca6060c342", "new-topology": "165cbef4-37fa-4fb4-8ed0-cea3ab01607e", "new-quant-index": "81a3d707-de3d-4824-b6ca-d274556142a5", "new-youtube": "9d3c0373-1e96-44b9-baf6-55171c6555f5", "new-web-search": "aa58123d-ab1b-4e37-b042-e3a6f9c43928", "new-stock-info": "f8c5aec5-7624-4080-bb97-96dda81a5b93", "new-selflearn-quant": "f91d8ccd-4c21-4a61-ad2f-b8f5c9528148"};Object.keys(ALIAS).forEach(o=>{if(S.pos[o]&&!S.pos[ALIAS[o]])S.pos[ALIAS[o]]=S.pos[o];delete S.pos[o];});
+/* 补回 VP / SVP 部门（已保存布局里没有时），放在秘书右侧；线条、文字不动 */
+["VP","SVP"].forEach((nm,i)=>{if(S.depts.some(k=>k.name===nm))return;const sec=S.depts.find(k=>k.name==="秘书");
+ S.depts.push({id:"d"+nm.toLowerCase()+Date.now(),name:nm,x:sec?sec.x+sec.w+15+i*155:315+i*155,y:sec?sec.y:20,w:140,h:sec?sec.h:130});localStorage.setItem(KEY,JSON.stringify(S));});
+/* 合并：专家培训部门（缺失时）放在秘书/SVP/VP 同一行最右侧，同 y、同高度；已有部门和机器人不动 */
+(function(){const NM="专家培训",ids=["10056f5a-2254-4409-919d-ccf862630619","245dbe8f-cca5-4e18-9ff1-710d85b0a665","a2be657b-f4cd-4c21-97ae-3322a1005ac9","fe0e695f-c929-4ab1-b895-0ed8082924e3"];
+ const miss=ids.filter(i=>!S.pos[i]);let d=S.depts.find(k=>k.name===NM);if(d&&!miss.length)return;
+ if(!d){const top=["秘书","SVP","VP"].map(n=>S.depts.find(k=>k.name===n)).filter(Boolean);
+  const y=top.length?Math.min(...top.map(k=>k.y)):20,h=top.length?Math.max(...top.map(k=>k.h)):130,x=top.length?Math.max(...top.map(k=>k.x+k.w))+30:20;
+  d={id:"dexp",name:NM,x,y,w:4*125+20,h};S.depts.push(d);}
+ const m=miss.map(i=>(S.pos[i]={x:d.x,y:d.y}));fit(d,m);localStorage.setItem(KEY,JSON.stringify(S));})();
+/* 合并：已保存布局里没有的新机器人 → 放进"未分配/新成员"部门，原有布局不动 */
+(function(){const miss=BOTS.filter(b=>!S.pos[b.id]);if(!miss.length)return;
+ const NM="未分配/新成员";let d=S.depts.find(k=>k.name===NM);
+ if(!d){let bot=0;S.depts.forEach(k=>bot=Math.max(bot,k.y+k.h));Object.values(S.pos).forEach(q=>bot=Math.max(bot,q.y+80));
+  d={id:"dnew"+Date.now(),name:NM,x:20,y:bot+20,w:1560,h:40+Math.ceil(miss.length/12)*90};S.depts.push(d);}
+ const per=Math.max(1,Math.floor((d.w-20)/125));
+ miss.forEach((b,j)=>{S.pos[b.id]={x:d.x+12+(j%per)*125,y:d.y+40+Math.floor(j/per)*90};});
+ d.h=Math.max(d.h,40+Math.ceil(miss.length/per)*90);
+ localStorage.setItem(KEY,JSON.stringify(S));})();
+let mode=false,pick=null,drag=null;const sel=new Set();
+S.strokes=S.strokes||[];S.texts=S.texts||[];
+let tool="select",pen="black",cur=null;
+function EYES(sh){const dy=sh==="cloud"?4:0;return [[29,19,5,10],[37.5,14.5,3.6,8]].map(([x,y,w,l])=>'<ellipse cx="'+x+'" cy="'+(y+dy)+'" rx="'+(w/2)+'" ry="'+(l/2)+'" fill="#fff" transform="rotate(-35 '+x+' '+(y+dy)+')"/>').join("");}
+const TOOLS=[["select","选择"],["pen","画笔"],["line","直线"],["text","文字"],["erase","橡皮"]];
+const ov=document.getElementById("ov");
+function setTool(t){tool=t;ov.style.display=t==="select"?"none":"block";ov.style.cursor=t==="text"?"text":t==="erase"?"cell":"crosshair";
+ document.querySelectorAll("#tools button").forEach(b=>b.className=b.dataset.t===t?"on":"");}
+TOOLS.forEach(([t,n])=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=t;b.style.marginRight="4px";b.onclick=()=>setTool(t);document.getElementById("tools").appendChild(b);});
+PALETTE.forEach(c=>{const s=document.createElement("span");Object.assign(s.style,{display:"inline-block",width:"18px",height:"18px",borderRadius:"50%",margin:"0 3px",verticalAlign:"middle",cursor:"pointer",background:COLORS[c]});s.dataset.c=c;s.title="线条/文字颜色";s.onclick=()=>{pen=c;markPen();};document.getElementById("pc").appendChild(s);});
+function markPen(){document.querySelectorAll("#pc span").forEach(s=>s.style.outline=s.dataset.c===pen?"2px solid #333":"none");}markPen();setTool("select");
+function d2(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy;let t=L?((p.x-a[0])*dx+(p.y-a[1])*dy)/L:0;t=Math.max(0,Math.min(1,t));const x=a[0]+t*dx-p.x,y=a[1]+t*dy-p.y;return Math.sqrt(x*x+y*y);}
+function erase(p){const n=S.strokes.length;S.strokes=S.strokes.filter(s=>!s.pts.some((q,i)=>d2(p,q,s.pts[Math.min(i+1,s.pts.length-1)])<8));
+ const m=S.texts.length;S.texts=S.texts.filter(t=>{const el=document.getElementById(t.id);if(!el)return true;const r=el.getBoundingClientRect(),b=board.getBoundingClientRect();const z=view.z;return !(p.x>=(r.left-b.left)/z&&p.x<=(r.right-b.left)/z&&p.y>=(r.top-b.top)/z&&p.y<=(r.bottom-b.top)/z);});
+ const k=S.lines.length;S.lines=S.lines.filter(l=>{const A=S.depts.find(d=>d.id===l.a),B=S.depts.find(d=>d.id===l.b);return !(A&&B&&d2(p,[A.x+A.w/2,A.y+A.h],[B.x+B.w/2,B.y])<8);});
+ if(n!==S.strokes.length||m!==S.texts.length||k!==S.lines.length){save();render();}}
+ov.onpointerdown=e=>{e.stopPropagation();const p=P(e);ov.setPointerCapture(e.pointerId);
+ if(tool==="pen"||tool==="line"){cur={pts:[[p.x,p.y],[p.x,p.y]],color:pen,line:tool==="line"};S.strokes.push(cur);drawLines();}
+ else if(tool==="erase"){cur="e";erase(p);}
+ else if(tool==="text"){const t={id:"t"+Date.now(),x:p.x,y:p.y-10,t:"",color:pen};S.texts.push(t);setTool("select");render();editText(t);}};
+ov.onpointermove=e=>{if(!cur)return;const p=P(e);if(cur==="e"){erase(p);return;}
+ if(cur.line)cur.pts[1]=[p.x,p.y];else cur.pts.push([p.x,p.y]);drawLines();};
+ov.onpointerup=()=>{if(cur&&cur!=="e")save();cur=null;};
+function editText(t){const el=document.getElementById(t.id);if(!el)return;el.contentEditable="true";el.focus();
+ const r=document.createRange();r.selectNodeContents(el);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r);
+ el.onblur=()=>{el.contentEditable="false";t.t=el.innerText.replace(/\n$/,"");if(!t.t.trim())S.texts=S.texts.filter(z=>z!==t);save();render();};}
+
+const board=document.getElementById("board"),svg=document.getElementById("lines");
+function save(){localStorage.setItem(KEY,JSON.stringify(S));const s=document.getElementById("saved");s.textContent="已自动保存";clearTimeout(save.t);save.t=setTimeout(()=>s.textContent="",1200);}
+let view=JSON.parse(localStorage.getItem(KEY+"-view")||"null")||{x:20,y:Math.ceil(document.getElementById("top").getBoundingClientRect().bottom)+10};
+view.z=view.z||1;board.style.transformOrigin="0 0";
+function applyView(){board.style.transform="translate("+view.x+"px,"+view.y+"px) scale("+view.z+")";}
+function bounds(){let a=1e9,b=1e9,c=-1e9,d=-1e9;const add=(x,y,X,Y)=>{a=Math.min(a,x);b=Math.min(b,y);c=Math.max(c,X);d=Math.max(d,Y);};
+ S.depts.forEach(k=>add(k.x,k.y,k.x+k.w,k.y+k.h));BOTS.forEach(o=>{const q=S.pos[o.id];if(q)add(q.x,q.y,q.x+(q.cw||Math.max(120,(q.s||44)+20)),q.y+(q.s||44)+40);});
+ S.texts.forEach(t=>add(t.x,t.y,t.x+20,t.y+24));(S.strokes||[]).forEach(z=>z.pts.forEach(p=>add(p[0],p[1],p[0],p[1])));return a>c?{x:0,y:0,w:800,h:600}:{x:a,y:b,w:c-a,h:d-b};}
+function fitView(){const B=bounds(),top=Math.ceil(document.getElementById("top").getBoundingClientRect().bottom)+10,W=innerWidth-40;
+ view.z=Math.max(0.1,Math.min(2,W/B.w));view.x=20-B.x*view.z;view.y=top-B.y*view.z;applyView();saveView();}
+function saveView(){localStorage.setItem(KEY+"-view",JSON.stringify(view));}
+const vp=document.getElementById("vp");let space=false,pan=null;
+document.addEventListener("keydown",e=>{if(e.code==="Space"&&!(e.target.isContentEditable||e.target.tagName==="INPUT")){space=true;vp.classList.add("pan");e.preventDefault();}});
+document.addEventListener("keyup",e=>{if(e.code==="Space"){space=false;vp.classList.remove("pan");}});
+vp.addEventListener("pointerdown",e=>{if(e.button===1||e.button===2||space){e.preventDefault();e.stopPropagation();pan={x:e.clientX,y:e.clientY,vx:view.x,vy:view.y};}},true);
+window.addEventListener("pointermove",e=>{if(!pan)return;view.x=pan.vx+e.clientX-pan.x;view.y=pan.vy+e.clientY-pan.y;applyView();});
+window.addEventListener("pointerup",()=>{if(pan){pan=null;saveView();}});
+vp.addEventListener("contextmenu",e=>e.preventDefault());
+vp.addEventListener("wheel",e=>{e.preventDefault();if(e.ctrlKey){const r=vp.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top,z=Math.max(0.1,Math.min(3,view.z*Math.exp(-e.deltaY*0.0015)));view.x=mx-(mx-view.x)*z/view.z;view.y=my-(my-view.y)*z/view.z;view.z=z;}else if(e.shiftKey){view.x-=e.deltaY||e.deltaX;}else{view.x-=e.deltaX;view.y-=e.deltaY;}applyView();clearTimeout(saveView.t);saveView.t=setTimeout(saveView,300);},{passive:false});
+document.getElementById("hm").onclick=()=>{const t=document.getElementById("top");t.classList.toggle("min");document.getElementById("hm").textContent=t.classList.contains("min")?"展开说明":"收起说明";};
+function P(e){const r=board.getBoundingClientRect();return{x:(e.clientX-r.left)/view.z,y:(e.clientY-r.top)/view.z};}
+let rzT;window.addEventListener("resize",()=>{clearTimeout(rzT);rzT=setTimeout(fitView,100);});
+function members(k){const r=[];BOTS.forEach(b=>{const q=S.pos[b.id];const cw=q.cw||Math.max(120,(q.s||44)+20),ch=(q.s||44)+30;const cx=q.x+cw/2,cy=q.y+ch/2;if(cx>=k.x&&cx<=k.x+k.w&&cy>=k.y&&cy<=k.y+k.h)r.push(q);});return r;}
+function fit(k,m0){const m=m0.slice().sort((a,b)=>(a.y-b.y)||(a.x-b.x)),n=m.length;if(!n)return;const W=k.w-16,H=k.h-46;let best=null;
+ for(let c=1;c<=n;c++){const rows=Math.ceil(n/c),cw=W/c,ch=H/rows,s=Math.min(cw-12,ch-34,90,cw*0.5);if(!best||s>best.s)best={c,cw,ch,s};}
+ const s=Math.max(16,Math.floor(best.s));m.forEach((q,i)=>{const col=i%best.c,row=Math.floor(i/best.c);q.s=s;q.cw=Math.floor(best.cw);q.x=Math.round(k.x+8+col*best.cw);q.y=Math.round(k.y+40+row*best.ch+(best.ch-s-30)/2);});}
+function render(){
+ board.querySelectorAll(".dept,.bot,.txt").forEach(e=>e.remove());
+ S.depts.forEach((k,i)=>{const d=document.createElement("div");d.className="dept"+(pick===k.id?" pick":"")+(sel.has(k.id)?" sel":"");
+  Object.assign(d.style,{left:k.x+"px",top:k.y+"px",width:k.w+"px",height:k.h+"px",background:COLORS[k.color||DCOL[i%3]]+"2E",cursor:mode?"crosshair":"default"});
+  d.innerHTML='<div class="hd"><span style="color:#aaa;margin-right:6px">⠿</span><input><span class="sw"></span><span class="x">✕</span></div><div class="rs"></div>';
+  const inp=d.querySelector("input");inp.value=k.name;inp.style.width=Math.max(4,k.name.length*1.2+1)+"em";
+  inp.onpointerdown=e=>e.stopPropagation();inp.oninput=()=>{k.name=inp.value;inp.style.width=Math.max(4,k.name.length*1.2+1)+"em";save();};
+  d.querySelector(".x").onpointerdown=e=>{e.stopPropagation();if(confirm("删除部门“"+k.name+"”？")){S.depts=S.depts.filter(z=>z!==k);S.lines=S.lines.filter(l=>l.a!==k.id&&l.b!==k.id);save();render();}};
+  const sw=d.querySelector(".sw");PALETTE.forEach(c=>{const s=document.createElement("span");s.title=c;Object.assign(s.style,{display:"inline-block",width:"12px",height:"12px",borderRadius:"50%",marginLeft:"5px",verticalAlign:"middle",cursor:"pointer",background:COLORS[c],outline:(k.color||DCOL[i%3])===c?"2px solid #333":"none",outlineOffset:"1px"});s.onpointerdown=e=>{e.stopPropagation();k.color=c;save();render();};sw.appendChild(s);});
+  d.onpointerdown=e=>{if(mode){e.stopPropagation();doPick(k.id);}};
+  d.querySelector(".hd").onpointerdown=e=>{e.stopPropagation();if(mode){doPick(k.id);return;}const p=P(e);
+   if(e.ctrlKey||e.shiftKey||e.metaKey){sel.has(k.id)?sel.delete(k.id):sel.add(k.id);render();return;}
+   if(sel.has(k.id)&&sel.size>1){const L=S.depts.filter(z=>sel.has(z.id)),seen=new Set(),items=[];
+    L.forEach(z=>{items.push({q:z,ox:z.x,oy:z.y});members(z).forEach(q=>{if(!seen.has(q)){seen.add(q);items.push({q,ox:q.x,oy:q.y});}});S.texts.forEach(t=>{if(!seen.has(t)&&t.x+5>=z.x&&t.x+5<=z.x+z.w&&t.y+10>=z.y&&t.y+10<=z.y+z.h){seen.add(t);items.push({q:t,ox:t.x,oy:t.y});}});});
+    let mdx=-Infinity,mdy=-Infinity;L.forEach(z=>{mdx=Math.max(mdx,-z.x);mdy=Math.max(mdy,-z.y);});
+    drag={t:"md",sx:p.x,sy:p.y,items,mdx,mdy};return;}
+   if(!sel.has(k.id)&&sel.size){sel.clear();render();}const inK=(cx,cy)=>cx>=k.x&&cx<=k.x+k.w&&cy>=k.y&&cy<=k.y+k.h;const m=members(k);S.texts.forEach(t=>{if(inK(t.x+5,t.y+10))m.push(t);});drag={t:"d",o:k,dx:p.x-k.x,dy:p.y-k.y,m:m.map(q=>({q,ox:q.x-k.x,oy:q.y-k.y}))};};
+  d.querySelector(".rs").onpointerdown=e=>{e.stopPropagation();drag={t:"r",o:k,m:members(k)};};
+  board.insertBefore(d,svg);});
+ BOTS.forEach(b=>{const p=S.pos[b.id];const el=document.createElement("div");el.className="bot";el.style.left=p.x+"px";el.style.top=p.y+"px";
+  const sz=p.s||44;el.style.width=(p.cw||Math.max(120,sz+20))+"px";el.style.fontSize=Math.max(9,Math.min(14,Math.round(sz*0.3),p.cw?Math.floor(p.cw/6):99))+"px";el.style.overflow="hidden";el.innerHTML='<div style="position:relative"><svg width="'+sz+'" height="'+sz+'" viewBox="0 0 48 48"><path d="'+(PATHS[b.shape]||PATHS.blob)+'" fill="'+(COLORS[b.color]||"#888")+'"/>'+EYES(b.shape)+'</svg><div class="sz" title="拖动缩放图标"></div></div><div style="margin-top:4px"></div>';
+  el.querySelector(".sz").onpointerdown=e=>{e.stopPropagation();drag={t:"s",o:p,l:p.x+(p.cw||Math.max(120,sz+20))/2-sz/2,tp:p.y};};
+  el.lastChild.textContent=b.name;
+  el.onpointerdown=e=>{e.stopPropagation();const q=P(e);drag={t:"b",o:p,dx:q.x-p.x,dy:q.y-p.y};};board.appendChild(el);});
+ S.texts.forEach(t=>{const el=document.createElement("div");el.className="txt";el.id=t.id;el.style.left=t.x+"px";el.style.top=t.y+"px";el.style.color=COLORS[t.color]||"#222";el.textContent=t.t;
+  el.onpointerdown=e=>{if(el.isContentEditable)return;e.stopPropagation();const q=P(e);drag={t:"b",o:t,dx:q.x-t.x,dy:q.y-t.y};};
+  el.ondblclick=e=>{e.stopPropagation();drag=null;editText(t);};board.appendChild(el);});
+ drawLines();}
+function drawLines(){svg.querySelectorAll("g,polyline").forEach(g=>g.remove());
+ S.strokes.forEach(s=>{const pl=document.createElementNS("http://www.w3.org/2000/svg","polyline");pl.setAttribute("points",s.pts.map(q=>q.join(",")).join(" "));pl.setAttribute("fill","none");pl.setAttribute("stroke",COLORS[s.color]||"#222");pl.setAttribute("stroke-width","2.5");pl.setAttribute("stroke-linecap","round");pl.setAttribute("stroke-linejoin","round");svg.appendChild(pl);});
+ S.lines.forEach((l,i)=>{const A=S.depts.find(d=>d.id===l.a),B=S.depts.find(d=>d.id===l.b);if(!A||!B)return;
+  const x1=A.x+A.w/2,y1=A.y+A.h,x2=B.x+B.w/2,y2=B.y;const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.innerHTML=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="14"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>`;
+  g.onpointerdown=e=>{e.stopPropagation();S.lines.splice(i,1);save();drawLines();};svg.appendChild(g);});}
+function doPick(id){if(!pick){pick=id;}else{if(pick!==id)S.lines.push({a:pick,b:id});pick=null;save();}render();}
+vp.onpointerdown=e=>{if(pan||mode||tool!=="select")return;const p=P(e);sel.clear();drag={t:"mq",sx:p.x,sy:p.y,x:p.x,y:p.y};render();};
+document.addEventListener("keydown",e=>{if(e.key==="Escape"&&sel.size&&!(document.activeElement&&document.activeElement.isContentEditable)){sel.clear();render();}});
+function mqRect(){return{x:Math.min(drag.sx,drag.x),y:Math.min(drag.sy,drag.y),w:Math.abs(drag.x-drag.sx),h:Math.abs(drag.y-drag.sy)};}
+window.addEventListener("pointermove",e=>{if(!drag||pan)return;const p=P(e);
+ if(drag.t==="mq"){drag.x=p.x;drag.y=p.y;const r=mqRect(),m=document.getElementById("mq");Object.assign(m.style,{display:"block",left:r.x+"px",top:r.y+"px",width:r.w+"px",height:r.h+"px"});return;}
+ if(drag.t==="md"){const dx=p.x-drag.sx,dy=p.y-drag.sy;drag.items.forEach(z=>{z.q.x=z.ox+dx;z.q.y=z.oy+dy;});render();return;}
+ if(drag.t==="s"){drag.o.s=Math.round(Math.max(24,Math.min(200,Math.max(p.x-drag.l,p.y-drag.tp))));}
+ else if(drag.t==="r"){drag.o.w=Math.max(140,p.x-drag.o.x);drag.o.h=Math.max(80,p.y-drag.o.y);fit(drag.o,drag.m);}
+ else{drag.o.x=p.x-drag.dx;drag.o.y=p.y-drag.dy;if(drag.m)drag.m.forEach(z=>{z.q.x=drag.o.x+z.ox;z.q.y=drag.o.y+z.oy;});}
+ render();});
+window.onpointerup=()=>{if(!drag)return;if(drag.t==="mq"){const r=mqRect();document.getElementById("mq").style.display="none";
+  if(r.w>3||r.h>3)S.depts.forEach(k=>{if(k.x<r.x+r.w&&k.x+k.w>r.x&&k.y<r.y+r.h&&k.y+k.h>r.y)sel.add(k.id);});drag=null;render();return;}drag=null;save();};
+document.getElementById("add").onclick=()=>{const v=document.getElementById("nd").value.trim();if(!v)return;S.depts.push({id:"d"+Date.now(),name:v,x:40,y:40,w:400,h:180});document.getElementById("nd").value="";save();render();};
+document.getElementById("clr").onclick=()=>{if(confirm("清除所有线条和文字？")){S.lines=[];S.strokes=[];S.texts=[];save();render();}};
+document.getElementById("reset").onclick=()=>{if(confirm("恢复默认布局会丢掉你的所有修改，确定吗？")){localStorage.removeItem(KEY);location.reload();}};
+/* 一次性迁移(与侧边栏分组对齐)：股市新闻分析→股市玩家分析 改名；培训总监 从 专家培训 移到 SVP；只重排受影响的两个部门内部 */
+(function(){const MK=KEY+"-mig-sidebar1";if(localStorage.getItem(MK))return;
+ S.depts.forEach(k=>{if(k.name==="股市新闻分析")k.name="股市玩家分析";});
+ const id="245dbe8f-cca5-4e18-9ff1-710d85b0a665",q=S.pos[id],svp=S.depts.find(k=>k.name==="SVP"),exp=S.depts.find(k=>k.name==="专家培训");
+ if(q&&svp&&!members(svp).includes(q)){const old=S.depts.filter(k=>members(k).includes(q));
+  const sm=members(svp).sort((a,b)=>(a.y-b.y)||(a.x-b.x));const sk=S.pos["b45cc405-91e6-4b2b-89a1-252e840cce06"];
+  q.x=svp.x+1;q.y=svp.y+40;const lst=sm.slice();const i=sk&&lst.includes(sk)?lst.indexOf(sk)+1:0;lst.splice(i,0,q);
+  lst.forEach((z,j)=>{z.y=svp.y+40;z.x=svp.x+j;});fit(svp,lst);
+  old.forEach(k=>fit(k,members(k).filter(z=>z!==q)));}
+ localStorage.setItem(MK,"1");localStorage.setItem(KEY,JSON.stringify(S));})();
+/* 一次性迁移2：删除群聊“产业研究”(021a30ec)；产业研究 d42f8e55 移入 VP 占其位置；只重排 VP，股市产业分析 不动(留空位) */
+(function(){const MK=KEY+"-mig-sidebar2";if(localStorage.getItem(MK))return;
+ const G="021a30ec-226c-41da-8245-5114fa07db86",I="d42f8e55-371c-498e-9858-aabdc1d3a073",vp=S.depts.find(k=>k.name==="VP"),g=S.pos[G],q=S.pos[I];
+ if(vp&&q&&!members(vp).includes(q)){const inVP=g&&(()=>{const cw=g.cw||Math.max(120,(g.s||44)+20),cx=g.x+cw/2,cy=g.y+((g.s||44)+30)/2;return cx>=vp.x&&cx<=vp.x+vp.w&&cy>=vp.y&&cy<=vp.y+vp.h;})();
+  const lst=members(vp).sort((a,b)=>(a.y-b.y)||(a.x-b.x));
+  if(inVP){q.x=g.x;q.y=g.y;}else{q.x=vp.x+vp.w;q.y=vp.y+40;}
+  lst.push(q);fit(vp,lst);}
+ delete S.pos[G];localStorage.setItem(MK,"1");localStorage.setItem(KEY,JSON.stringify(S));})();
+render();fitView();document.getElementById("fitb").onclick=fitView;
+</script></body></html>
