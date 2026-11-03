@@ -11,7 +11,7 @@
 1. **开放获取优先**（后台脚本）：Unpaywall API、OpenAlex locations、Semantic Scholar openAccessPdf、Europe PMC/PMC、arXiv（仅精确题名匹配）、NBER、机构仓储（DukeSpace、LSE、MPRA 等）、出版商 OA 页面。
 2. **严格校验**：必须是真 PDF、>30KB、前几页文本含题名；标注预印本/作者稿/工作论文版本。
 3. 失败条目按出版商分组写入 `<任务目录>/proxy_todo.md`。
-4. **学校代理补下**（box 浏览器，已登录 KSU EZproxy）：
+4. **学校代理补下**（box 浏览器，已登录 university EZproxy）：
    - 通用：`https://proxy.kennesaw.edu/login?url=https://doi.org/<DOI>`
    - Wiley：`https://onlinelibrary-wiley-com.proxy.kennesaw.edu/doi/pdfdirect/<DOI>?download=true`
    - 可用：Wiley、JSTOR、OUP、SAGE、Emerald、Cambridge、T&F、ACS、ACM、JAMA（部分）
