@@ -1,0 +1,108 @@
+<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8"><title>我的机器人公司架构</title>
+<style>
+body{font-family:system-ui,"Microsoft YaHei",sans-serif;margin:16px;background:#fafafa;color:#222}
+#bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 12px}
+button,input{padding:6px 12px;border-radius:8px;border:1px solid #ccc;background:#eee;font:inherit;cursor:pointer}
+input{background:#fff;cursor:text}
+button.on{background:#222;color:#fff}
+#board{position:relative;width:1600px;height:1000px;border:1px solid #ddd;border-radius:16px;background:#fff;user-select:none;touch-action:none}
+.dept{position:absolute;border:1px dashed #999;border-radius:12px}
+.dept.pick{outline:3px solid #3B82F6}
+.hd{padding:6px 10px;font-weight:600;font-size:14px;cursor:move;color:#555}
+.hd input{border:none;border-bottom:1px dashed #bbb;background:transparent;padding:0;font-weight:600;color:#555;cursor:text;border-radius:0}
+.hd .sw{margin-left:8px}
+.hd .x{margin-left:8px;color:#aaa;cursor:pointer}
+.rs{position:absolute;right:0;bottom:0;width:18px;height:18px;cursor:nwse-resize;border-right:3px solid #888;border-bottom:3px solid #888;border-bottom-right-radius:12px}
+.bot{position:absolute;z-index:2;width:120px;display:flex;flex-direction:column;align-items:center;cursor:grab;font-size:13px;text-align:center}
+svg#lines{position:absolute;left:0;top:0;pointer-events:none;z-index:3}
+
+#ov{position:absolute;left:0;top:0;width:100%;height:100%;display:none;z-index:5}
+.txt{position:absolute;z-index:4;font-size:16px;min-width:10px;padding:2px 4px;white-space:pre;cursor:move;outline:none}
+.txt[contenteditable=true]{cursor:text;outline:1px dashed #3B82F6;background:#fff}
+.sz{position:absolute;right:-6px;bottom:-6px;width:12px;height:12px;border-radius:3px;background:#fff;border:2px solid #888;cursor:nwse-resize;display:none}
+.bot:hover .sz{display:block}
+#saved{color:#4a4;font-size:13px;align-self:center}
+</style></head><body>
+<div style="font-size:22px;font-weight:600">我的机器人公司架构</div>
+<div style="color:#666;font-size:14px">“选择”模式下：拖动机器人、部门（按住 ⠿）、文字；拖右下角改部门大小；鼠标移到机器人图标上，拖它右下角的小方块可以缩放图标；点部门名改名；点小圆点换背景色；双击文字可修改。画笔随手画，直线按住拖出一条线，文字点哪里就在哪里输入，橡皮点到线条或文字就删除。所有改动自动保存。</div>
+<div id="bar"><input id="nd" placeholder="新部门名称"><button id="add">添加部门</button><span id="tools"></span><span id="pc"></span><button id="clr">清除所有线条和文字</button><button id="reset">恢复默认布局</button><span id="saved"></span></div>
+<div id="board"><div id="ov"></div><svg id="lines" width="1600" height="1000"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0L10 5L0 10Z" fill="#555"/></marker></defs></svg></div>
+<script>
+const BOTS=__BOTS__;
+const COLORS={black:"#1F1F1F",cyan:"#22B8CF",gray:"#9AA0A6",magenta:"#D63AAF",blue:"#3B82F6",yellow:"#F5B915",green:"#22C55E",red:"#EF4444",orange:"#F97316",purple:"#8B5CF6",pink:"#EC4899"};
+const PATHS={square:"M6 6H42V42H6Z",blob:"M24 3C35 3 45 11 45 23C45 36 36 45 24 45C11 45 3 37 3 24C3 12 12 3 24 3Z",cloud:"M14 38C7 38 3 33 3 27C3 21 8 17 13 17C14 10 19 5 26 5C33 5 38 10 39 17C44 18 45 22 45 27C45 33 41 38 35 38Z",tablet:"M10 4H38C41 4 43 6 43 9V39C43 42 41 44 38 44H10C7 44 5 42 5 39V9C5 6 7 4 10 4Z"};
+const DCOL=["blue","yellow","cyan"];const PALETTE=["black","cyan","gray","magenta","blue","yellow"];
+const DEF={depts:[{id:"d0",name:"总部",x:20,y:20,w:1180,h:110},{id:"d1",name:"量化交易部",x:20,y:150,w:580,h:220},{id:"d2",name:"研究与文献部",x:620,y:150,w:580,h:220},{id:"d3",name:"技术与数据部",x:20,y:390,w:580,h:220},{id:"d4",name:"其他",x:620,y:390,w:580,h:220}],pos:{},lines:[]};
+const KEY="grokbot-org-v1";
+let S=JSON.parse(localStorage.getItem(KEY)||"null")||JSON.parse(JSON.stringify(DEF));
+let n=0;BOTS.forEach(b=>{if(!S.pos[b.id]){S.pos[b.id]={x:20+(n%10)*145,y:640+Math.floor(n/10)*80};n++;}});
+let mode=false,pick=null,drag=null;
+S.strokes=S.strokes||[];S.texts=S.texts||[];
+let tool="select",pen="black",cur=null;
+function EYES(sh){const dy=sh==="cloud"?4:0;return [[29,19,5,10],[37.5,14.5,3.6,8]].map(([x,y,w,l])=>'<ellipse cx="'+x+'" cy="'+(y+dy)+'" rx="'+(w/2)+'" ry="'+(l/2)+'" fill="#fff" transform="rotate(-35 '+x+' '+(y+dy)+')"/>').join("");}
+const TOOLS=[["select","选择"],["pen","画笔"],["line","直线"],["text","文字"],["erase","橡皮"]];
+const ov=document.getElementById("ov");
+function setTool(t){tool=t;ov.style.display=t==="select"?"none":"block";ov.style.cursor=t==="text"?"text":t==="erase"?"cell":"crosshair";
+ document.querySelectorAll("#tools button").forEach(b=>b.className=b.dataset.t===t?"on":"");}
+TOOLS.forEach(([t,n])=>{const b=document.createElement("button");b.textContent=n;b.dataset.t=t;b.style.marginRight="4px";b.onclick=()=>setTool(t);document.getElementById("tools").appendChild(b);});
+PALETTE.forEach(c=>{const s=document.createElement("span");Object.assign(s.style,{display:"inline-block",width:"18px",height:"18px",borderRadius:"50%",margin:"0 3px",verticalAlign:"middle",cursor:"pointer",background:COLORS[c]});s.dataset.c=c;s.title="线条/文字颜色";s.onclick=()=>{pen=c;markPen();};document.getElementById("pc").appendChild(s);});
+function markPen(){document.querySelectorAll("#pc span").forEach(s=>s.style.outline=s.dataset.c===pen?"2px solid #333":"none");}markPen();setTool("select");
+function d2(p,a,b){const dx=b[0]-a[0],dy=b[1]-a[1],L=dx*dx+dy*dy;let t=L?((p.x-a[0])*dx+(p.y-a[1])*dy)/L:0;t=Math.max(0,Math.min(1,t));const x=a[0]+t*dx-p.x,y=a[1]+t*dy-p.y;return Math.sqrt(x*x+y*y);}
+function erase(p){const n=S.strokes.length;S.strokes=S.strokes.filter(s=>!s.pts.some((q,i)=>d2(p,q,s.pts[Math.min(i+1,s.pts.length-1)])<8));
+ const m=S.texts.length;S.texts=S.texts.filter(t=>{const el=document.getElementById(t.id);if(!el)return true;const r=el.getBoundingClientRect(),b=board.getBoundingClientRect();return !(p.x>=r.left-b.left&&p.x<=r.right-b.left&&p.y>=r.top-b.top&&p.y<=r.bottom-b.top);});
+ const k=S.lines.length;S.lines=S.lines.filter(l=>{const A=S.depts.find(d=>d.id===l.a),B=S.depts.find(d=>d.id===l.b);return !(A&&B&&d2(p,[A.x+A.w/2,A.y+A.h],[B.x+B.w/2,B.y])<8);});
+ if(n!==S.strokes.length||m!==S.texts.length||k!==S.lines.length){save();render();}}
+ov.onpointerdown=e=>{e.stopPropagation();const p=P(e);ov.setPointerCapture(e.pointerId);
+ if(tool==="pen"||tool==="line"){cur={pts:[[p.x,p.y],[p.x,p.y]],color:pen,line:tool==="line"};S.strokes.push(cur);drawLines();}
+ else if(tool==="erase"){cur="e";erase(p);}
+ else if(tool==="text"){const t={id:"t"+Date.now(),x:p.x,y:p.y-10,t:"",color:pen};S.texts.push(t);setTool("select");render();editText(t);}};
+ov.onpointermove=e=>{if(!cur)return;const p=P(e);if(cur==="e"){erase(p);return;}
+ if(cur.line)cur.pts[1]=[p.x,p.y];else cur.pts.push([p.x,p.y]);drawLines();};
+ov.onpointerup=()=>{if(cur&&cur!=="e")save();cur=null;};
+function editText(t){const el=document.getElementById(t.id);if(!el)return;el.contentEditable="true";el.focus();
+ const r=document.createRange();r.selectNodeContents(el);r.collapse(false);const s=getSelection();s.removeAllRanges();s.addRange(r);
+ el.onblur=()=>{el.contentEditable="false";t.t=el.innerText.replace(/\n$/,"");if(!t.t.trim())S.texts=S.texts.filter(z=>z!==t);save();render();};}
+
+const board=document.getElementById("board"),svg=document.getElementById("lines");
+function save(){localStorage.setItem(KEY,JSON.stringify(S));const s=document.getElementById("saved");s.textContent="已自动保存";clearTimeout(save.t);save.t=setTimeout(()=>s.textContent="",1200);}
+function P(e){const r=board.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};}
+function render(){
+ board.querySelectorAll(".dept,.bot,.txt").forEach(e=>e.remove());
+ S.depts.forEach((k,i)=>{const d=document.createElement("div");d.className="dept"+(pick===k.id?" pick":"");
+  Object.assign(d.style,{left:k.x+"px",top:k.y+"px",width:k.w+"px",height:k.h+"px",background:COLORS[k.color||DCOL[i%3]]+"2E",cursor:mode?"crosshair":"default"});
+  d.innerHTML='<div class="hd"><span style="color:#aaa;margin-right:6px">⠿</span><input><span class="sw"></span><span class="x">✕</span></div><div class="rs"></div>';
+  const inp=d.querySelector("input");inp.value=k.name;inp.style.width=Math.max(4,k.name.length*1.2+1)+"em";
+  inp.onpointerdown=e=>e.stopPropagation();inp.oninput=()=>{k.name=inp.value;inp.style.width=Math.max(4,k.name.length*1.2+1)+"em";save();};
+  d.querySelector(".x").onpointerdown=e=>{e.stopPropagation();if(confirm("删除部门“"+k.name+"”？")){S.depts=S.depts.filter(z=>z!==k);S.lines=S.lines.filter(l=>l.a!==k.id&&l.b!==k.id);save();render();}};
+  const sw=d.querySelector(".sw");PALETTE.forEach(c=>{const s=document.createElement("span");s.title=c;Object.assign(s.style,{display:"inline-block",width:"12px",height:"12px",borderRadius:"50%",marginLeft:"5px",verticalAlign:"middle",cursor:"pointer",background:COLORS[c],outline:(k.color||DCOL[i%3])===c?"2px solid #333":"none",outlineOffset:"1px"});s.onpointerdown=e=>{e.stopPropagation();k.color=c;save();render();};sw.appendChild(s);});
+  d.onpointerdown=e=>{if(mode){e.stopPropagation();doPick(k.id);}};
+  d.querySelector(".hd").onpointerdown=e=>{e.stopPropagation();if(mode){doPick(k.id);return;}const p=P(e);const inK=(cx,cy)=>cx>=k.x&&cx<=k.x+k.w&&cy>=k.y&&cy<=k.y+k.h;const m=[];BOTS.forEach(b=>{const q=S.pos[b.id];if(inK(q.x+60,q.y+22))m.push(q);});S.texts.forEach(t=>{if(inK(t.x+5,t.y+10))m.push(t);});drag={t:"d",o:k,dx:p.x-k.x,dy:p.y-k.y,m:m.map(q=>({q,ox:q.x-k.x,oy:q.y-k.y}))};};
+  d.querySelector(".rs").onpointerdown=e=>{e.stopPropagation();drag={t:"r",o:k};};
+  board.insertBefore(d,svg);});
+ BOTS.forEach(b=>{const p=S.pos[b.id];const el=document.createElement("div");el.className="bot";el.style.left=p.x+"px";el.style.top=p.y+"px";
+  const sz=p.s||44;el.style.width=Math.max(120,sz+20)+"px";el.style.fontSize=Math.max(12,Math.round(sz*0.3))+"px";el.innerHTML='<div style="position:relative"><svg width="'+sz+'" height="'+sz+'" viewBox="0 0 48 48"><path d="'+(PATHS[b.shape]||PATHS.blob)+'" fill="'+(COLORS[b.color]||"#888")+'"/>'+EYES(b.shape)+'</svg><div class="sz" title="拖动缩放图标"></div></div><div style="margin-top:4px"></div>';
+  el.querySelector(".sz").onpointerdown=e=>{e.stopPropagation();drag={t:"s",o:p,l:p.x+Math.max(120,sz+20)/2-sz/2,tp:p.y};};
+  el.lastChild.textContent=b.name;
+  el.onpointerdown=e=>{e.stopPropagation();const q=P(e);drag={t:"b",o:p,dx:q.x-p.x,dy:q.y-p.y};};board.appendChild(el);});
+ S.texts.forEach(t=>{const el=document.createElement("div");el.className="txt";el.id=t.id;el.style.left=t.x+"px";el.style.top=t.y+"px";el.style.color=COLORS[t.color]||"#222";el.textContent=t.t;
+  el.onpointerdown=e=>{if(el.isContentEditable)return;e.stopPropagation();const q=P(e);drag={t:"b",o:t,dx:q.x-t.x,dy:q.y-t.y};};
+  el.ondblclick=e=>{e.stopPropagation();drag=null;editText(t);};board.appendChild(el);});
+ drawLines();}
+function drawLines(){svg.querySelectorAll("g,polyline").forEach(g=>g.remove());
+ S.strokes.forEach(s=>{const pl=document.createElementNS("http://www.w3.org/2000/svg","polyline");pl.setAttribute("points",s.pts.map(q=>q.join(",")).join(" "));pl.setAttribute("fill","none");pl.setAttribute("stroke",COLORS[s.color]||"#222");pl.setAttribute("stroke-width","2.5");pl.setAttribute("stroke-linecap","round");pl.setAttribute("stroke-linejoin","round");svg.appendChild(pl);});
+ S.lines.forEach((l,i)=>{const A=S.depts.find(d=>d.id===l.a),B=S.depts.find(d=>d.id===l.b);if(!A||!B)return;
+  const x1=A.x+A.w/2,y1=A.y+A.h,x2=B.x+B.w/2,y2=B.y;const g=document.createElementNS("http://www.w3.org/2000/svg","g");
+  g.innerHTML=`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="transparent" stroke-width="14"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>`;
+  g.onpointerdown=e=>{e.stopPropagation();S.lines.splice(i,1);save();drawLines();};svg.appendChild(g);});}
+function doPick(id){if(!pick){pick=id;}else{if(pick!==id)S.lines.push({a:pick,b:id});pick=null;save();}render();}
+board.onpointermove=e=>{if(!drag)return;const p=P(e);
+ if(drag.t==="s"){drag.o.s=Math.round(Math.max(24,Math.min(200,Math.max(p.x-drag.l,p.y-drag.tp))));}
+ else if(drag.t==="r"){drag.o.w=Math.max(140,p.x-drag.o.x);drag.o.h=Math.max(80,p.y-drag.o.y);}
+ else{drag.o.x=Math.max(0,p.x-drag.dx);drag.o.y=Math.max(0,p.y-drag.dy);if(drag.m)drag.m.forEach(z=>{z.q.x=drag.o.x+z.ox;z.q.y=drag.o.y+z.oy;});}
+ render();};
+window.onpointerup=()=>{if(drag){drag=null;save();}};
+document.getElementById("add").onclick=()=>{const v=document.getElementById("nd").value.trim();if(!v)return;S.depts.push({id:"d"+Date.now(),name:v,x:40,y:40,w:400,h:180});document.getElementById("nd").value="";save();render();};
+document.getElementById("clr").onclick=()=>{if(confirm("清除所有线条和文字？")){S.lines=[];S.strokes=[];S.texts=[];save();render();}};
+document.getElementById("reset").onclick=()=>{if(confirm("恢复默认布局会丢掉你的所有修改，确定吗？")){localStorage.removeItem(KEY);location.reload();}};
+render();
+</script></body></html>
