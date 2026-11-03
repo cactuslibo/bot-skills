@@ -1,40 +1,40 @@
 ---
-name: ç­–ç•¥MyRSI
-description: è¿è¡Œ Taz çš„ MyRSIï¼ˆä¹°RSIï¼‰â€œè§„åˆ™ä¸‰â€æ—¥çº¿ç­–ç•¥ï¼šPython è®¡ç®—ä¿¡å·ã€å›žæµ‹ ETFã€æ¯æ—¥æ”¶ç›˜åŽæŠ¥å‘ŠæŒä»“/ç©ºä»“ä¸Žåˆ‡æ¢ã€‚
+name: 策略MyRSI
+description: 运行 Taz 的 MyRSI（买RSI）“规则三”日线策略：Python 计算信号、回测 ETF、每日收盘后报告持仓/空仓与切换。
 ---
 
-# ç­–ç•¥MyRSI â€” è§„åˆ™ä¸‰
+# 策略MyRSI — 规则三
 
-## ç”¨é€”
-- æŠŠ TradingView æŒ‡æ ‡ã€Œä¹°RSIã€(MyRSI) çš„â€œè§„åˆ™ä¸‰â€ç­–ç•¥ç”¨ Python å®žçŽ°å¹¶é•¿æœŸè¿è¡Œã€‚
-- å¯¹ ARK ç³»åˆ—å’Œ SPDR XL è¡Œä¸š ETF åšå›žæµ‹ï¼Œå’Œé•¿æœŸæŒæœ‰ (B&H) å¯¹æ¯”ã€‚
-- æ¯æ—¥æ”¶ç›˜åŽç»™å‡º 20 åª ETF çš„ä¿¡å·çŠ¶æ€ï¼ˆåº”å…¶ä»– bot å¦‚â€œæ¯æ—¥é‡åŒ–ç­–ç•¥æ£€æµ‹â€çš„è¯·æ±‚ï¼‰ã€‚
+## 用途
+- 把 TradingView 指标「买RSI」(MyRSI) 的“规则三”策略用 Python 实现并长期运行。
+- 对 ARK 系列和 SPDR XL 行业 ETF 做回测，和长期持有 (B&H) 对比。
+- 每日收盘后给出 20 只 ETF 的信号状态（应其他 bot 如“每日量化策略检测”的请求）。
 
-## è§¦å‘åœºæ™¯
-- â€œè·‘ä¸€ä¸‹è§„åˆ™ä¸‰ / MyRSIâ€â€œä»Šå¤©å“ªäº› ETF æŒä»“ã€æœ‰æ²¡æœ‰åˆ‡æ¢â€â€œå›žæµ‹æŸ ETF æ˜¯å¦è·‘èµ¢é•¿æœŸæŒæœ‰â€ã€‚
+## 触发场景
+- “跑一下规则三 / MyRSI”“今天哪些 ETF 持仓、有没有切换”“回测某 ETF 是否跑赢长期持有”。
 
-## æŒ‡æ ‡å®šä¹‰ï¼ˆL=21ï¼‰
-- boo = 100*(close + 2*stdev(close,21) - sma(close,21)) / (4*stdev(close,21))ï¼Œæ€»ä½“æ ‡å‡†å·® (ddof=0)
-- green = ema(boo,12)ï¼Œblue = ema(boo,26)ï¼Œred = ema(boo,120)ï¼Œå‚è€ƒçº¿ -40
-- EMA ä¸º Pine é£Žæ ¼ï¼šalpha=2/(n+1)ï¼Œä»Žç¬¬ä¸€ä¸ªæœ‰æ•ˆ boo èµ·ç®—
+## 指标定义（L=21）
+- boo = 100*(close + 2*stdev(close,21) - sma(close,21)) / (4*stdev(close,21))，总体标准差 (ddof=0)
+- green = ema(boo,12)，blue = ema(boo,26)，red = ema(boo,120)，参考线 -40
+- EMA 为 Pine 风格：alpha=2/(n+1)，从第一个有效 boo 起算
 
-## è§„åˆ™ä¸‰ï¼ˆæ—¥çº¿ï¼Œåªåšå¤šï¼Œæ»¡ä»“ï¼Œæ— æ‰‹ç»­è´¹ï¼‰
-- ä¹°å…¥ï¼šgreen ä¸Šç©¿ red ä¸” close > SMA200
-- å–å‡ºï¼šclose < SMA200
-- æ”¶ç›˜å‡ºä¿¡å·ï¼Œæ¬¡æ—¥å¼€ç›˜æˆäº¤
+## 规则三（日线，只做多，满仓，无手续费）
+- 买入：green 上穿 red 且 close > SMA200
+- 卖出：close < SMA200
+- 收盘出信号，次日开盘成交
 
-## æ­¥éª¤
-1. æ•°æ®ï¼šå‘ TradingView bot ç´¢å–å¤æƒæ—¥ Kï¼ˆæˆ–ç”±æ¯æ—¥é‡åŒ–ç­–ç•¥æ£€æµ‹æä¾›æœ€æ–°ä¸€æ ¹ï¼‰ï¼Œå­˜ `/workspace/data/etf/<TICKER>.csv`ï¼Œæ–°å¢žè¡Œæ”¾ `/workspace/data/etf/new/`ã€‚
-2. æ¯æ—¥ï¼šç¡®è®¤ new/ æ•°æ®æ—¥æœŸæœ€æ–°åŽè¿è¡Œ `python3 /workspace/myrsi/batch/daily.py`ï¼Œè¾“å‡ºæ¯åªçš„æŒä»“/ç©ºä»“ã€å½“æ—¥æ˜¯å¦åˆ‡æ¢ã€closeã€SMA200ã€greenã€redã€‚
-3. å›žæµ‹ï¼š`/workspace/myrsi/batch/bt3.py` è¾“å‡ºæ€»æ”¶ç›Šã€æœ€å¤§å›žæ’¤ã€Sharpe å¯¹æ¯” B&Hï¼ˆsummary.csvã€equity.pngï¼‰ã€‚
-4. ç”¨ä¸­æ–‡å›žå¤ï¼Œæ ‡å‡ºè´´è¿‘ SMA200 çš„ä¸´ç•Œæ ‡çš„ã€‚
+## 步骤
+1. 数据：向 TradingView bot 索取复权日 K（或由每日量化策略检测提供最新一根），存 `/workspace/data/etf/<TICKER>.csv`，新增行放 `/workspace/data/etf/new/`。
+2. 每日：确认 new/ 数据日期最新后运行 `python3 /workspace/myrsi/batch/daily.py`，输出每只的持仓/空仓、当日是否切换、close、SMA200、green、red。
+3. 回测：`/workspace/myrsi/batch/bt3.py` 输出总收益、最大回撤、Sharpe 对比 B&H（summary.csv、equity.png）。
+4. 用中文回复，标出贴近 SMA200 的临界标的。
 
-## æ ‡çš„
+## 标的
 XLB XLC XLE XLF XLI XLK XLP XLRE XLU XLV XLY ARKK ARKG ARKW ARKQ ARKF ARKX PRNT IZRL ARKB
 
-## å·²çŸ¥ç»“è®º
-- QQQï¼šç­–ç•¥ +449% / å›žæ’¤ 18.3% / Sharpe 1.14ï¼ŒB&H +512% / å›žæ’¤ 35.6%ã€‚
-- 20 åª ETFï¼šæ€»æ”¶ç›Šä»… XLCã€ARKG è·‘èµ¢ B&Hï¼›19/20 å›žæ’¤æ›´ä½Žï¼›6/20 Sharpe æ›´å¥½ã€‚ä¸»è¦ä»·å€¼æ˜¯é™å›žæ’¤ã€‚
+## 已知结论
+- QQQ：策略 +449% / 回撤 18.3% / Sharpe 1.14，B&H +512% / 回撤 35.6%。
+- 20 只 ETF：总收益仅 XLC、ARKG 跑赢 B&H；19/20 回撤更低；6/20 Sharpe 更好。主要价值是降回撤。
 
-## æ•°æ®æº/å·¥å…·
-TradingView botï¼ˆK çº¿ï¼‰ã€Python (pandas/numpy)ã€`/workspace/myrsi/` ä»£ç ã€‚
+## 数据源/工具
+TradingView bot（K 线）、Python (pandas/numpy)、`/workspace/myrsi/` 代码。
