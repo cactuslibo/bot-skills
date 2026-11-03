@@ -16,17 +16,19 @@ description: 在 GitHub 上全面检索某一主题的 AI agent skill（SKILL.md
 1. 明确主题与硬性要求（如“必须是华尔街/权威机构认可的标准方法”“要能追到终端用户”“要精准、有来源”）。
 2. 按全面检索方法论（/workspace/method/plan_final.md）执行：
    - 来源地图 + 中英文关键词矩阵；
-   - 多渠道：GitHub 仓库/topic/代码搜索、skills.sh 排行、awesome-claude-skills 等 awesome 列表、官方 org（anthropics、openai、数据商 org）；
+   - 多渠道：GitHub 仓库/topic/代码搜索（gh 已登录时可用 `gh search code 'filename:SKILL.md <关键词>'` 或 `gh api search/code -f q='filename:SKILL.md ...'` 精确找 skill 文件；未登录时代码搜索不可用）、Gitee（其 API 需要 access token，没有 token 就先问 Taz，或退回网页搜索）、skills.sh 排行、awesome-claude-skills 等 awesome 列表、官方 org（anthropics、openai、数据商 org）；
    - 滚雪球扩展；
    - 逐个打开 README/SKILL.md 核实，按 A/B/C 分级；
    - 饱和检验：连续两轮新增 <5% 才停止；
    - 全部查询写入 query_log。
 3. 每个 skill 记录：链接、星标、最近更新、功能、方法、数据源、是否需付费 key/登录、分级、适用场景。
-4. 安全审查：标出搬运/改版/可疑仓库，只推荐原作者仓库；提醒先读脚本再装。
+4. 安全审查：疑似复制/搬运他人仓库、疑似刷星（星标与提交/贡献者/issue 活跃度明显不符、短期暴涨、大量空账号）的仓库必须在报告中明确标注，只推荐原作者仓库；提醒先读脚本再装。
+   - 下载范围：只下载源码和规则文件（SKILL.md、规则/提示词、代码），用 `gh api repos/<r>/contents/<path>` 按文件拉取；不收集、不引用别人的回测数据或回测结论。
 5. 产出 /workspace/<主题>_skills/survey.md，向用户用中文汇报：Top 推荐（分类）、覆盖空白、付费/登录注意、局限。
 6. 用户同意后：SendToAgent 把清单发给目标 bot（或 CreateAgent 新建 bot 并放入指定分组），附注意事项：只从原仓库安装、先核实、付费 key/注册先问 Taz、key 只在该 bot 自己聊天中提交、用中文汇报。
 
 ## 数据源/工具
+辅助脚本见 code/（README.md 说明用途）。
 GitHub API 与 cursor-github 连接器、WebSearch/WebFetch、skills.sh、awesome 列表、SendToAgent、CreateAgent、ListSections。
 
 ## 原则
