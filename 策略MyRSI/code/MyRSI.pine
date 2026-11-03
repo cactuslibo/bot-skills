@@ -1,0 +1,19 @@
+//@version=3
+
+study("MyRSI")
+len = input(21)
+len2 = input(12)
+len23 = input(26)
+len3 = input(120)
+dev = stdev(close, len)
+
+boo=100 * ( close + 2*stdev( close, len) - 1*sma(close, len ) ) / ( 4 * stdev(close, len) )
+smaa=ema(boo, len2)
+smbb=ema(boo, len3)
+smab=ema(boo, len23)
+hline(-40, color=blue)
+
+plot(smaa, title="StDev of Close", color=green, linewidth = 2)
+plot(smbb, title="StDev of Close", color=red, linewidth = 2)
+plot(smab, title="StDev of Close", color=blue, linewidth = 2)
+plot(boo, title="StDev of Close", color=gray, linewidth = 2)

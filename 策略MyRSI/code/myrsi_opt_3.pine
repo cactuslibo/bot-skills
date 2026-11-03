@@ -1,0 +1,27 @@
+//@version=5
+strategy("MyRSI opt3 green>red with SMA200 trend filter", overlay=false, initial_capital=10000, default_qty_type=strategy.percent_of_equity, default_qty_value=100, commission_value=0, process_orders_on_close=false)
+len = input.int(21, "len")
+pv = input.int(5, "pivot left/right")
+startDate = input.time(timestamp("2016-10-28T00:00:00"), "Start date")
+boo = 100 * (close + 2 * ta.stdev(close, len) - ta.sma(close, len)) / (4 * ta.stdev(close, len))
+smaa = ta.ema(boo, 12)
+smab = ta.ema(boo, 26)
+smbb = ta.ema(boo, 120)
+plot(boo, "boo", color=color.gray)
+plot(smaa, "ema12", color=color.green)
+plot(smab, "ema26", color=color.blue)
+plot(smbb, "ema120", color=color.red)
+hline(-40)
+hline(0)
+ph = ta.pivothigh(boo, pv, pv)
+lastPH = ta.valuewhen(not na(ph), ph, 0)
+prevPH = ta.valuewhen(not na(ph), ph, 1)
+lowerHigh = lastPH < prevPH
+inWindow = time >= startDate
+sma200 = ta.sma(close, 200)
+longEntry = ta.crossover(smaa, smbb) and close > sma200
+longExit = close < sma200
+if inWindow and longEntry and strategy.position_size == 0
+    strategy.entry("L", strategy.long)
+if strategy.position_size > 0 and longExit
+    strategy.close("L")
