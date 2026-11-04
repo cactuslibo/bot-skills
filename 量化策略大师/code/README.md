@@ -28,3 +28,5 @@ Python 3.9+，`pandas`、`numpy`、`scipy`；`ndx_escape/dl.py` 另外需要 `yf
 - `bt/run_round.py`、`bt/run2.py`：每轮实验的运行器，会记录试验台账。
 - `bt/r1.py` ~ `bt/r8.py`：第 1～8 轮迭代实验脚本。
 - 运行：`cd wyckoff/bt && python r1.py`（依次运行各轮）。
+- `full_bt/run_full.py`、`analyze.py`、`current_list.py`、`make_report.py`：全样本回测（市值>10 亿美元的美股，2005–2026），分别负责生成信号与交易、统计、当前清单和报告。
+- `variants.md`：V1–V8 各变体的思路与参数、E1/E2 入场方式、运行方法，以及回测结论摘要。
